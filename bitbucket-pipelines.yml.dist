@@ -1,0 +1,171 @@
+# This file is part of the Universal Docker stand for web development project.
+#
+# This project is no longer maintained.
+# The project is written as Universal Docker stand Release.
+#
+# @link https://github.com/scorpion3dd
+# @author Denis Puzik <scorpion3dd@gmail.com>
+# @copyright Copyright (c) 2022-2023 scorpion3dd
+
+image: php:8.2-fpm-buster
+
+pipelines:
+  default:
+    - step:
+        name: "Build"
+        caches:
+          - composer
+        script:
+          - php -v
+          - pear -V
+          - pecl -V
+          - mkdir -p /usr/local/bin
+          - curl -sS https://get.symfony.com/cli/installer | bash -s -- --install-dir=/usr/local/bin
+          - symfony -v
+          - symfony var:export
+          - apt-get update && apt-get install -y curl wget gnupg g++ procps openssl git unzip zlib1g-dev libzip-dev
+          - apt-get update && apt-get install -y libfreetype6-dev libpng-dev libjpeg-dev libicu-dev libonig-dev
+          - apt-get update && apt-get install -y libxslt1-dev libpq-dev acl
+          - echo 'alias sf="php bin/console"' >> ~/.bashrc
+          - docker-php-ext-configure gd --with-jpeg --with-freetype
+          - pecl install xdebug-3.2.1 && docker-php-ext-enable xdebug
+          - apt-get update && apt-get install -y libmongoc-dev libssl-dev
+          - pecl install mongodb && docker-php-ext-enable mongodb
+          - pecl install redis && docker-php-ext-enable redis
+          - docker-php-ext-install pdo pdo_mysql mysqli pdo_pgsql pgsql zip xsl gd intl opcache exif mbstring
+          - apt-get update && apt-get install -y libmagickwand-dev
+          - pecl install imagick && docker-php-ext-enable imagick
+          - apt-get update && apt-get install -y telnet mc iputils-ping net-tools htop netcat vim redis-tools kafkacat
+          - apt-get update && apt-get install -y librabbitmq-dev
+          - pecl install amqp && docker-php-ext-enable amqp
+          - apt-get update && apt-get install -y gnupg
+          - curl -sL https://deb.nodesource.com/setup_20.x  | bash
+          - apt-get update && apt-get install -y nodejs
+          - apt-get update && apt-get install -y xsltproc
+          - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+          - composer --version
+          - mkdir -p /usr/local/bin
+          - curl -sS https://get.symfony.com/cli/installer | bash -s -- --install-dir=/usr/local/bin
+          - symfony -v
+          - symfony var:export
+          - php -v
+          - ls -la
+          - cd www/back
+#  symfony-cmd
+#sh: 1: symfony-cmd: not found
+#Script symfony-cmd handling the auto-scripts event returned with error code 127
+#Script @auto-scripts was called via post-install-cmd
+#Plugins have been disabled automatically as you are running as root, this may be the cause of the script failure.
+          - /usr/local/bin/symfony composer install --no-interaction
+          - /usr/local/bin/symfony composer check-cs
+        artifacts:
+          - var/**
+          - vendor/**
+
+    - step:
+        name: check cs
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - vendor/bin/phpcs
+
+    - step:
+        name: check stan
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - vendor/bin/phpstan analyse --level=7 --memory-limit=1024M --xdebug
+
+    - step:
+        name: check psalm
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - vendor/bin/psalm
+
+    - step:
+        name: check phpmd
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - vendor/bin/phpmd src/ text phpmd_ruleset.xml --suffixes php,phtml.twig --strict --color
+
+    - step:
+        name: check phpunit unit tests no-coverage
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - php bin/phpunit --testsuite=Unit --colors=always --no-coverage
+
+    - step:
+        name: check phpunit integration tests no-coverage
+        services:
+          - mysql
+          - mongo
+          - redis
+          - rabbitmq
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - php bin/phpunit --testsuite=Integration --colors=always --no-coverage
+
+    - step:
+        name: check phpunit functional tests no-coverage
+        services:
+          - mysql
+          - mongo
+          - redis
+          - rabbitmq
+        caches:
+          - composer
+        script:
+          - php -v
+          - ls -la
+          - cd www/back
+          - php bin/phpunit --testsuite=Functional --colors=always --no-coverage
+
+    - step:
+        name: Build assets
+        caches:
+          - composer
+        script:
+          - ls -la
+          - cd www/back
+          - apt-get install -y nodejs npm
+          - npm install --global yarn
+          - yarn install
+          - yarn encore production
+
+definitions:
+  services:
+    redis:
+      image: redis:5.0
+    mysql:
+      image: mysql:8.0
+      environment:
+        MYSQL_DATABASE: 'learn'
+        MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+        MYSQL_USER: 'learn'
+        MYSQL_PASSWORD: 'learn123'
+    mongo:
+      image: mongo:5.0
+    rabbitmq:
+      image: rabbitmq:3.7-management
