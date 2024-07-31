@@ -20,7 +20,7 @@ sonar.links.homepage=https://back.docker
 sonar.links.scm=https://scorpion3dd@bitbucket.org/3dscorpion7/docker-symfony6-demo.git
 
 sonar.host.url=http://sonarqube:9000
-sonar.token=sqp_cfd5071187539bcfc712a7a6c4abe45798ac71ae
+sonar.token=sqp_cf8de28f3fb000c468b660e84188ced60af19915
 
 # defaults to 'not provided'
 sonar.projectVersion=1.0
